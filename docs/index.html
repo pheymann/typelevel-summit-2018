@@ -1,0 +1,111 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/white.css" id="theme">
+    <link rel="stylesheet" href="css/presentation.css">
+    
+    <!-- Code syntax highlighting -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          <section>
+            <h2>Typedapi</h2>
+            <h3>Define your API on the type-level</h3>
+            
+            <aside class="notes">
+              Some time ago, my colleague David and I were working on a toy project in Haskell which was basically a worker processing messages which it retrieved via HTTP calls.
+	    </aside>
+          </section>
+          <section>
+            <img alt="servant logo" src="img/servant.png" height="266" width="200"/>
+            <br><br>
+            https://github.com/haskell-servant/servant
+
+            <aside class="notes">
+              He introduced Servant to define these HTTP calls. For everyone not knowing Servant, it is a library which lets you define web apis as types and derives client and server functions from it. At that time I didn't know it either and I was immediately hooked. Servant reduces the code you write to define clients or server to a mere type, it adds extra typesafety and you can use your api types as contracts between a server and its clients.
+
+              At this point an idea formed itself in the back of my head: It would be a nice pet project to implement the same functionality in Scala. But what is the first thing you do before starting a new time sink? Right, you start up your favorite browser and search for solutions already available.
+	    </aside>
+          </section>
+          <section>
+            <img alt="google search" src="img/google.png" height="350" width="800"/>
+
+            <aside class="notes">
+              Right, you start up your favorite browser and search for solutions already available.
+
+              Fortunately I couldn't find a promising project on the internets. So far so good. Cancel my weekend plans I have a new item on my agenda.
+	    </aside>
+          </section>
+          <section>
+            <img alt="Servant to scala" src="img/haskell-to-scala.png" height="350" width="800"/>
+
+            <aside class="notes">
+              And the first step will be to convince Scala to derive a client function from a api defined as type which will also be the main topic of this talk.
+	    </aside>
+          </section>
+        </section>
+        <section>
+          <img alt="myself" src="img/myself.svg"/>
+
+          <aside class="notes">
+            I am Paul Heymann, Data Engineer at the professional network XING holding LinkedIn at bay. And I am your story teller for the next n minutes. So lets buckle up and start the ride.
+	  </aside>
+        </section>
+
+
+
+
+        <section>
+          <section>
+            <h2>What is this talk about?</h2>
+          </section>
+          <section>
+            <ul>
+              <li>basic ideas of Functional Programming</li>
+              <li class="fragment fade-up">first concepts</li>
+              <li class="fragment fade-up">(hopefully) some good code examples</li>
+            </ul>
+          </section>
+          <section>
+            <pre><code class="scala" data-trim>
+                // data
+                val score: Double = 0.0
+                
+                final case class User(name: String, age: Int)                      
+
+                // operations
+                def combine(a: Double, b: Double) = a + b
+                def equal(a: User, b: User) =  a.name == b.name && ...
+            </code></pre>
+            <aside class="notes">
+	      - data no behaviour in it self
+	    </aside>
+          </section>
+        </section>
+      </div>
+    </div>
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.js"></script>
+
+    <script>
+       Reveal.initialize({
+           controls: true,
+           progress: true,
+       history: false,
+           center: true,
+
+           transition: 'slide', // none/fade/slide/convex/concave/zoom
+
+           dependencies: [
+               { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+               { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+               { src: 'plugin/zoom-js/zoom.js', async: true },
+               { src: 'plugin/notes/notes.js', async: true }
+           ]
+       });
+    </script>        
+  </body>
+</html>
