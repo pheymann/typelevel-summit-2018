@@ -16,7 +16,7 @@
             <h3>Define your API on the type-level</h3>
             
             <aside class="notes">
-              Some time ago, my colleague David and I were working on a toy project in Haskell which was basically a worker processing messages which it retrieved via HTTP calls.
+              Hi, who here knows Servant?
 	    </aside>
           </section>
           <section>
@@ -25,18 +25,20 @@
             https://github.com/haskell-servant/servant
 
             <aside class="notes">
-              He introduced Servant to define these HTTP calls. For everyone not knowing Servant, it is a library which lets you define web apis as types and derives client and server functions from it. At that time I didn't know it and I was immediately hooked. Servant reduces the code you write to define clients or server to a mere type, it adds extra typesafety and you can use your api types as contracts between a server and its clients.
+              For everyone not knowing it, it is a Haskell library which lets you define web apis as types and derives client and server functions from it.
 
-              After a while an idea formed itself in the back of my head: It would be a nice pet project to implement the same functionality in Scala. But what is the first thing you do before opening a new time sink? Right, you start up your favorite browser and search for solutions already available.
+              I saw it the first time a couple of weeks ago when a colleague of mine introduced it to me in a toy project we were working on. I was immediately hooked. Servant reduces the code you write to define clients or server to a mere type, it adds extra typesafety and you can use your api types as contracts between a server and its clients.
+
+              After a while an idea formed itself in my head: It would be a nice pet project to implement the same functionality in Scala. But what is the first thing you do before opening such a time sink?
 	    </aside>
           </section>
           <section>
             <img alt="google search" src="img/google.png" height="350" width="800"/>
 
             <aside class="notes">
-              Right, you start up your favorite browser and search for solutions already available.
+              Right, you fire up your favorite browser and start an extensive 5min search for solutions already available.
 
-              Fortunately I couldn't find a promising project on the internets. So far so good. Cancel my weekend plans I have a new item on my agenda.
+              Fortunately, I couldn'd find a promising project on the internet whci basically meant -> Cancel my weekend plans I have a new item on my agenda.
 	    </aside>
           </section>
           <section>
@@ -45,7 +47,9 @@
             <aside class="notes">
               Bringing Servant to Scala.
 
-              And the first step will be to convince Scala to derive a client function from a api defined as type which will also be the topic of this talk.
+              But I wanted to make baby steps, so I started with the goal of deriving a client function from an single api type.
+
+              And this will also be the topic of my talk.
 	    </aside>
           </section>
         </section>
@@ -54,7 +58,7 @@
             <img alt="myself" src="img/myself.svg"/>
 
             <aside class="notes">
-              Hi, I am Paul Heymann, Data Engineer at the social network XING holding LinkedIn at bay (at least in Germany). And I am your guide for the next 12 minutes. So lets buckle up and start the ride.
+              Hi, I am Paul Heymann, Data Engineer at the social network XING holding LinkedIn at bay (at least in Germany). And I am your guide for the next 12 minutes.
 	    </aside>
           </section>
           <section>
@@ -67,7 +71,7 @@
             </code></pre>
             
             <aside class="notes">
-              I will use the following example to ease the understanding of the code that follows. What we try to achieve is to find all users with a given name and minimum age.
+              I will use the following example to ease the understanding of the code you will see. What we try to achieve is to find all users with a given name and minimum age.
 	    </aside>
           </section>
           <section>
@@ -140,11 +144,13 @@
                             Root / "users" / Segment[String]('name), 
                             Queries.add(Query[Int]('minAge)))
 
-              // ApiTypeCarrier[Get[List[User]] :: name :: users :: ... :: HNil]
+              //Ap: ApiTypeCarrier[Get[List[User]] :: name :: users :: ... :: HNil]
             </code></pre>
 
             <aside class="notes">
-              Now we put all these into a convinient function call and get as result an HList type representing our api. What we get as result is a type carrier storing our api type.
+              Now we put all these into a convinient function call and what we get as result is a type carrier storing our api type. This carrier has no fields or methods. It only exists to hold an HList.
+
+              Okay, we can put a checkmark behind this task. Next thing is to derive the function.
 	    </aside>
           </section>
           <section>
@@ -171,12 +177,14 @@
             <pre><code class="scala" data-trim>
               type KIn = nameW.T :: minAgeW.T :: HNil
               type VIn = String :: Int :: HNil
-              type El  = usersW.T :: SegmentInput :: QueryInput
+              type El  = usersW.T :: SegmentInput :: QueryInput :: HNil
               type M   = GetCall
               type O   = List[User]
             </code></pre>
             
             <aside class="notes">
+              ...
+              
               Usually when you try to transform a collection into a new shape you use folds. But how to do the same thing for types?
             </aside>
           </section>
@@ -266,14 +274,14 @@
             </code></pre>
 
             <aside class="notes">
-              Above is again an example for queries. It resolves the witness of the key and puts that together with the input value into our queries map.
+              Above is again an example for queries. It resolves the witness of the key and puts that together with the input value into our queries map. After that, it continues with next builder step until no element is left in the api. Then it will return the uri and queries collections.
             </aside>
           </section>
           <section>
             <h4>what we got so far</h4>
 
             <pre><code class="scala" data-trim>
-              "joe" :: 42 :: HNil => (List("users", "joe"), Map("filterByAge" -> List("42")))
+              "joe" :: 42 :: HNil => (List("users", "joe"), Map("minAge" -> List("42")))
             </code></pre>
           </section>
           <section>
@@ -296,10 +304,15 @@
             <h4>wrap it up</h4>
 
             <pre><code class="scala" data-trim>
-              // VIn => F[Out]
+              // transform -> request data -> request
               "joe" :: 42 :: HNil => IO(List(User("joe", 42), ...))
+            </code></pre>
+          </section>
+          <section>
+            <h4>make it nice</h4>
 
-              // FnFromProduct
+            <pre><code class="scala" data-trim>
+              // shapeless.ops.function.FnFromProduct
               ("joe", 42) => IO(List(User("joe", 42), ...))
             </code></pre>
           </section>
