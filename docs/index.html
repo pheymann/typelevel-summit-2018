@@ -25,9 +25,9 @@
             https://github.com/haskell-servant/servant
 
             <aside class="notes">
-              He introduced Servant to define these HTTP calls. For everyone not knowing Servant, it is a library which lets you define web apis as types and derives client and server functions from it. At that time I didn't know it either and I was immediately hooked. Servant reduces the code you write to define clients or server to a mere type, it adds extra typesafety and you can use your api types as contracts between a server and its clients.
+              He introduced Servant to define these HTTP calls. For everyone not knowing Servant, it is a library which lets you define web apis as types and derives client and server functions from it. At that time I didn't know it and I was immediately hooked. Servant reduces the code you write to define clients or server to a mere type, it adds extra typesafety and you can use your api types as contracts between a server and its clients.
 
-              At this point an idea formed itself in the back of my head: It would be a nice pet project to implement the same functionality in Scala. But what is the first thing you do before starting a new time sink? Right, you start up your favorite browser and search for solutions already available.
+              After a while an idea formed itself in the back of my head: It would be a nice pet project to implement the same functionality in Scala. But what is the first thing you do before opening a new time sink? Right, you start up your favorite browser and search for solutions already available.
 	    </aside>
           </section>
           <section>
@@ -43,7 +43,9 @@
             <img alt="Servant to scala" src="img/haskell-to-scala.png" height="350" width="800"/>
 
             <aside class="notes">
-              And the first step will be to convince Scala to derive a client function from a api defined as type which will also be the main topic of this talk.
+              Bringing Servant to Scala.
+
+              And the first step will be to convince Scala to derive a client function from a api defined as type which will also be the topic of this talk.
 	    </aside>
           </section>
         </section>
@@ -52,27 +54,27 @@
             <img alt="myself" src="img/myself.svg"/>
 
             <aside class="notes">
-              I am Paul Heymann, Data Engineer at the professional network XING holding LinkedIn at bay. And I am your guide for the next 12 minutes. So lets buckle up and start the ride.
+              Hi, I am Paul Heymann, Data Engineer at the social network XING holding LinkedIn at bay (at least in Germany). And I am your guide for the next 12 minutes. So lets buckle up and start the ride.
 	    </aside>
           </section>
           <section>
             <h4>lets have an example</h4>
 
             <pre><code class="scala" data-trim>
-              // GET /users/:name?filterByAge=[age] -> List[User]
+              // GET /users/:name?minAge=[age] -> List[User]
 
               final case class User(name: String, age: Int)
             </code></pre>
             
             <aside class="notes">
-              I will use the following example to ease the understanding of the code that follows. What we try to achieve is to find all users with a given name filtered by their age.
+              I will use the following example to ease the understanding of the code that follows. What we try to achieve is to find all users with a given name and minimum age.
 	    </aside>
           </section>
           <section>
             <h4>what we want</h4>
 
             <pre><code class="scala" data-trim>
-              (name: String, filterByAge: Int) => F[List[User]]
+              (name: String, minAge: Int) => F[List[User]]
             </code></pre>
 
             <aside class="notes">
@@ -116,11 +118,11 @@
 
             <pre><code class="scala" data-trim>
               // query
-              val filterW = shapeless.Witness('filterByAge)
+              val minAgeW = shapeless.Witness('minAge)
 
               sealed trait Query[K, V]
 
-              type filter = Query[filterW.T, Int]
+              type filter = Query[minAgeW.T, Int]
 
               // method
               sealed trait Get[A]
@@ -136,13 +138,13 @@
             <pre><code class="scala" data-trim>
               val Api = api(Get[List[User]],
                             Root / "users" / Segment[String]('name), 
-                            Queries.add(Query[Int]('filterByName)))
+                            Queries.add(Query[Int]('minAge)))
 
-              // Get[List[User]] :: name :: users :: ... :: HNil
+              // ApiTypeCarrier[Get[List[User]] :: name :: users :: ... :: HNil]
             </code></pre>
 
             <aside class="notes">
-              Now we put all these into a convinient function call and get as result an HList type representing our api. But you will say "hey I don't see a type. You declared a value there.", and you are right. We are still in Scala and, therefore, are not able to work with types as you do with values. To overcome this problem I introduced a type carrier. A simple case class without fields, which carriers the type of the HList.
+              Now we put all these into a convinient function call and get as result an HList type representing our api. What we get as result is a type carrier storing our api type.
 	    </aside>
           </section>
           <section>
@@ -156,14 +158,27 @@
             </ul>
 
             <aside class="notes">
-              First thing we do with our api type to extract five new types which will come in handy later on. 
+              First thing we do with our api type is to extract five new types which will come in handy later on. 
                 - KIn and VIn are the key and value types of the input fields we expect, e.g. key 'name and value String
                 - O and 
                 - M represent the output type and the method
                 - and El are all the elements of our api, here userW.T :: SegmentInput :: QueryInput :: GetCall :: HNil
-
-              Usually when you try to transform a collection into a new shape you use folds. But how to do the same thing for types?
 	    </aside>
+          </section>
+          <section>
+            <h4>what we will have</h4>
+
+            <pre><code class="scala" data-trim>
+              type KIn = nameW.T :: minAgeW.T :: HNil
+              type VIn = String :: Int :: HNil
+              type El  = usersW.T :: SegmentInput :: QueryInput
+              type M   = GetCall
+              type O   = List[User]
+            </code></pre>
+            
+            <aside class="notes">
+              Usually when you try to transform a collection into a new shape you use folds. But how to do the same thing for types?
+            </aside>
           </section>
           <section>
             <h4>fold over types</h4>
@@ -203,17 +218,6 @@
             <aside class="notes">
               And then we construct a recrusive call structure to traverse our api type. Here we look at the current element type of our api and try to find the corresponding aggregation. When this is done the next step is resolved with the new intermediate type. At the end, we just return the latest aggregated type as final result.
             </aside>
-          </section>
-          <section>
-            <h4>what we got so far</h4>
-
-            <pre><code class="scala" data-trim>
-              type KIn = nameW.T :: filterW.T :: HNil
-              type VIn = String :: Int :: HNil
-              type El  = usersW.T :: SegmentInput :: QueryInput
-              type M   = GetCall
-              type O   = List[User]
-            </code></pre>
           </section>
           <section>
             <h4>collect the request data</h4>
@@ -281,6 +285,45 @@
                 def apply(data: (Uri, Queries), client: C): F[Out]
               }
             </code></pre>
+
+            <aside class="notes">
+              A function to collect request data is quite nice but useless. We have to use these data to make a request. And the mechanism how the request is executes shouldn't be exposed. Best solution, again, is to use typeclasses. With ApiRequest we only define the method, context F, what client we need and what comes out.
+
+              We can use http4s, akka-http, finagle or any web framework/library to implement this trait those making our approach vendor independent.
+            </aside>
+          </section>
+          <section>
+            <h4>wrap it up</h4>
+
+            <pre><code class="scala" data-trim>
+              // VIn => F[Out]
+              "joe" :: 42 :: HNil => IO(List(User("joe", 42), ...))
+
+              // FnFromProduct
+              ("joe", 42) => IO(List(User("joe", 42), ...))
+            </code></pre>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h4>Typedapi - all you saw and more</h4>
+            
+            <ul>
+              <li class="fragment fade-up">client and server functions</li>
+              <li class="fragment fade-up">support for http4s</li>
+              <li class="fragment fade-up">single and multi-api derivation</li>
+            </ul>
+          </section>
+          <section>
+            <h4>What's next</h4>
+            
+            <ul>
+              <li class="fragment fade-up">support for akka-http and finagle</li>
+              <li class="fragment fade-up">derive swagger documentation from types</li>
+            </ul>
+          </section>
+          <section>
+            <h2>Questions?</h2>
           </section>
         </section>
       </div>
