@@ -27,7 +27,7 @@
             <aside class="notes">
               For everyone not knowing it, it is a Haskell library which lets you define web apis as types and derives client and server functions from it.
 
-              I saw it the first time a couple of weeks ago when a colleague of mine introduced it to me in a toy project we were working on. I was immediately hooked. Servant reduces the code you write to define clients or server to a mere type, it adds extra typesafety and you can use your api types as contracts between a server and its clients.
+              I saw it the first time a couple of weeks ago when a colleague of mine introduced it to me in a toy project we were working on. I was immediately hooked. Servant reduces the code you write to define clients or server to a mere type, it adds extra type safety and you can use your api types as contracts between a server and its clients.
 
               After a while an idea formed itself in my head: It would be a nice pet project to implement the same functionality in Scala. But what is the first thing you do before opening such a time sink?
 	    </aside>
@@ -38,7 +38,7 @@
             <aside class="notes">
               Right, you fire up your favorite browser and start an extensive 5min search for solutions already available.
 
-              Fortunately, I couldn'd find a promising project on the internet whci basically meant -> Cancel my weekend plans I have a new item on my agenda.
+              Fortunately, I couldn't find a promising project on the internet which basically meant -> Cancel my weekend plans I have a new item on my agenda.
 	    </aside>
           </section>
           <section>
@@ -47,7 +47,7 @@
             <aside class="notes">
               Bringing Servant to Scala.
 
-              But I wanted to make baby steps, so I started with the goal of deriving a client function from an single api type.
+              But I wanted to make baby steps, so I started with the goal of deriving a client function from a single api type.
 
               And this will also be the topic of my talk.
 	    </aside>
@@ -58,7 +58,7 @@
             <img alt="myself" src="img/myself.svg"/>
 
             <aside class="notes">
-              Hi, I am Paul Heymann, Data Engineer at the social network XING holding LinkedIn at bay (at least in Germany). And I am your guide for the next 12 minutes.
+              I am Paul Heymann, Data Engineer at the social network XING holding LinkedIn at bay (at least in Germany). And I am your guide for the next 12 minutes.
 	    </aside>
           </section>
           <section>
@@ -99,7 +99,7 @@
             </code></pre>
             
             <aside class="notes">
-              First step is to represent our api as a type. Lets start with the path '/users'. We need to encode that as a type. Unfortunately we just have Vanilla Scala at our hands and literal types aren't a thing, yet. But shapeless has something to overcome this problem called Witness. It forces us onto the value-level but right now that is the only way to get literal types in Scala 2.x. We also add a wrapper type to define it as a path element.
+              The first step is to represent our api as a type. Let's start with the path '/users'. We need to encode that as a type. Unfortunately, we just have Vanilla Scala at our hands and literal types aren't a thing, yet. But shapeless has something to overcome this problem called Witness. It forces us onto the value-level but right now that is the only way to get literal types in Scala 2.x. We also add a wrapper type to define it as a path element.
 	    </aside>
           </section>
           <section>
@@ -148,7 +148,7 @@
             </code></pre>
 
             <aside class="notes">
-              Now we put all these into a convinient function call and what we get as result is a type carrier storing our api type. This carrier has no fields or methods. It only exists to hold an HList.
+              Now we put all these into a convenient function call and what we get as result is a type carrier storing our api type. This carrier has no fields or methods. It only exists to hold an HList.
 
               Okay, we can put a checkmark behind this task. Next thing is to derive the function.
 	    </aside>
@@ -164,7 +164,7 @@
             </ul>
 
             <aside class="notes">
-              First thing we do with our api type is to extract five new types which will come in handy later on. 
+              The first thing we do with our api type is to extract five new types which will come in handy later on. 
                 - KIn and VIn are the key and value types of the input fields we expect, e.g. key 'name and value String
                 - O and 
                 - M represent the output type and the method
@@ -183,9 +183,7 @@
             </code></pre>
             
             <aside class="notes">
-              ...
-              
-              Usually when you try to transform a collection into a new shape you use folds. But how to do the same thing for types?
+              Usually, when you try to transform a collection into a new shape you use folds. But how to do the same thing for types?
             </aside>
           </section>
           <section>
@@ -195,9 +193,9 @@
               trait FoldLeftFunction[In, Agg] { type Out }
 
               implicit def queryFold
-                  [S <: Symbol, A, El <: HList, KIn <: HList, VIn <: HList, M, Out] = 
-                FoldLeftFunction[Query[S, A], (El, KIn, VIn, M, Out)] { 
-                  type Out = (QueryInput :: El, S :: KIn, A :: VIn, M, Out) 
+                  [K <: Symbol, V, El <: HList, KIn <: HList, VIn <: HList, M, Out] = 
+                FoldLeftFunction[Query[K, V], (El, KIn, VIn, M, Out)] { 
+                  type Out = (QueryInput :: El, K :: KIn, V :: VIn, M, Out) 
                 }
 
               // the rest ...
@@ -224,7 +222,7 @@
             </code></pre>
             
             <aside class="notes">
-              And then we construct a recrusive call structure to traverse our api type. Here we look at the current element type of our api and try to find the corresponding aggregation. When this is done the next step is resolved with the new intermediate type. At the end, we just return the latest aggregated type as final result.
+              And then we construct a recursive call structure to traverse our api type. Here we look at the current element type of our api and try to find the corresponding aggregation. When this is done the next step is resolved with the new intermediate type. In the end, we just return the latest aggregated type as a final result.
             </aside>
           </section>
           <section>
@@ -238,16 +236,16 @@
             </code></pre>
 
             <aside class="notes">
-              Next step to is derive a function to collect all data necessary to make a request. In our case this means we need the uri and queries. 
+              Next step is to derive a function to collect all data necessary to make a request. In our case, this means we need the uri and queries. 
 
-              To do so we will introduce another typeclass we will call RequestDataBuilder.
+              To do so we will introduce another type class we will call RequestDataBuilder.
             </aside>
           </section>
           <section>
             <h4>collect the request data</h4>
 
             <pre><code class="scala" data-trim>
-              trait RequestDataBuilder[El <: HList, KIn <: HList, VIn <: HList, M, O] {
+              trait RequestDataBuilder[El <: HList, KIn <: HList, VIn <: HList] {
                 def apply(inputs: VIn, 
                           uri: Uri, 
                           queries: Queries): (Uri, Queries)
@@ -264,11 +262,9 @@
             <pre><code class="scala" data-trim>
               implicit def queryBuilder
                   [K <: Symbol, V, T <: HList, KIn <: HList, VIn <: HList, M, O]
-                  (implicit wit: Witness.Aux[K], next: RequestDataBuilder[T, KIn, VIn, O]) = 
-                new RequestDataBuilder[QueryInput :: T, K :: KIn, V :: VIn, O] {
-                  type Out = next.Out
-
-                  def apply(inputs: V :: VIn, uri: Uri, queries: Queries): Out =
+                  (implicit wit: Witness.Aux[K], next: RequestDataBuilder[T, KIn, VIn]) = 
+                new RequestDataBuilder[QueryInput :: T, K :: KIn, V :: VIn] {
+                  def apply(inputs: V :: VIn, uri: Uri, queries: Queries): (Uri, Queries) =
                     next(inputs.tail, uri, Map(wit.value.name -> List(inputs.head.toString())) ++ queries)
                 }
             </code></pre>
@@ -295,7 +291,7 @@
             </code></pre>
 
             <aside class="notes">
-              A function to collect request data is quite nice but useless. We have to use these data to make a request. And the mechanism how the request is executes shouldn't be exposed. Best solution, again, is to use typeclasses. With ApiRequest we only define the method, context F, what client we need and what comes out.
+              A function to collect request data is quite nice but useless. We have to use these data to make a request. And the mechanism how to execute a request shouldn't be exposed. The best solution, again, is to use type classes. With ApiRequest we only define the method, context F, what client we need and what comes out.
 
               We can use http4s, akka-http, finagle or any web framework/library to implement this trait those making our approach vendor independent.
             </aside>
