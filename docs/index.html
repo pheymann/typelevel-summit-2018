@@ -48,41 +48,239 @@
           </section>
         </section>
         <section>
-          <img alt="myself" src="img/myself.svg"/>
-
-          <aside class="notes">
-            I am Paul Heymann, Data Engineer at the professional network XING holding LinkedIn at bay. And I am your story teller for the next n minutes. So lets buckle up and start the ride.
-	  </aside>
-        </section>
-
-
-
-
-        <section>
           <section>
-            <h2>What is this talk about?</h2>
-          </section>
-          <section>
-            <ul>
-              <li>basic ideas of Functional Programming</li>
-              <li class="fragment fade-up">first concepts</li>
-              <li class="fragment fade-up">(hopefully) some good code examples</li>
-            </ul>
-          </section>
-          <section>
-            <pre><code class="scala" data-trim>
-                // data
-                val score: Double = 0.0
-                
-                final case class User(name: String, age: Int)                      
+            <img alt="myself" src="img/myself.svg"/>
 
-                // operations
-                def combine(a: Double, b: Double) = a + b
-                def equal(a: User, b: User) =  a.name == b.name && ...
-            </code></pre>
             <aside class="notes">
-	      - data no behaviour in it self
+              I am Paul Heymann, Data Engineer at the professional network XING holding LinkedIn at bay. And I am your guide for the next 12 minutes. So lets buckle up and start the ride.
 	    </aside>
+          </section>
+          <section>
+            <h4>lets have an example</h4>
+
+            <pre><code class="scala" data-trim>
+              // GET /users/:name?filterByAge=[age] -> List[User]
+
+              final case class User(name: String, age: Int)
+            </code></pre>
+            
+            <aside class="notes">
+              I will use the following example to ease the understanding of the code that follows. What we try to achieve is to find all users with a given name filtered by their age.
+	    </aside>
+          </section>
+          <section>
+            <h4>what we want</h4>
+
+            <pre><code class="scala" data-trim>
+              (name: String, filterByAge: Int) => F[List[User]]
+            </code></pre>
+
+            <aside class="notes">
+              What we want to end up with is a function which takes the name and age and gives us the list of users.
+	    </aside>
+          </section>
+          <section>
+            <h4>api as a type - path</h4>
+
+            <pre><code class="scala" data-trim>
+              // type Path = "users".type - no can do
+
+              val usersW = shapeless.Witness("users")
+
+              sealed trait Path[P]
+
+              type users = Path[usersW.T]
+            </code></pre>
+            
+            <aside class="notes">
+              First step is to represent our api as a type. Lets start with the path '/users'. We need to encode that as a type. Unfortunately we just have Vanilla Scala at our hands and literal types aren't a thing, yet. But shapeless has something to overcome this problem called Witness. It forces us onto the value-level but right now that is the only way to get literal types in Scala 2.x. We also add a wrapper type to define it as a path element.
+	    </aside>
+          </section>
+          <section>
+            <h4>api as a type - segment</h4>
+
+            <pre><code class="scala" data-trim>
+              val nameW = shapeless.Witness('name)
+
+              sealed trait Segment[K, V]
+
+              type name = Segment[nameW.T, String]
+            </code></pre>
+
+            <aside class="notes">
+              Next comes the segment for the name. Here we label the expected input type String with the segment name.
+	    </aside>
+          </section>
+          <section>
+            <h4>api as a type - query and method</h4>
+
+            <pre><code class="scala" data-trim>
+              // query
+              val filterW = shapeless.Witness('filterByAge)
+
+              sealed trait Query[K, V]
+
+              type filter = Query[filterW.T, Int]
+
+              // method
+              sealed trait Get[A]
+            </code></pre>
+
+            <aside class="notes">
+              We use the same technique for queries as we did for the segments and, furthermore, add a type to specify the method.
+	    </aside>
+          </section>
+          <section>
+            <h4>api as a type - put it all together</h4>
+            
+            <pre><code class="scala" data-trim>
+              val Api = api(Get[List[User]],
+                            Root / "users" / Segment[String]('name), 
+                            Queries.add(Query[Int]('filterByName)))
+
+              // Get[List[User]] :: name :: users :: ... :: HNil
+            </code></pre>
+
+            <aside class="notes">
+              Now we put all these into a convinient function call and get as result an HList type representing our api. But you will say "hey I don't see a type. You declared a value there.", and you are right. We are still in Scala and, therefore, are not able to work with types as you do with values. To overcome this problem I introduced a type carrier. A simple case class without fields, which carriers the type of the HList.
+	    </aside>
+          </section>
+          <section>
+            <h4>lets derive a client - type representation</h4>
+
+            <ul>
+              <li class="fragment fade-up">expected input: <code class="scala">KIn <: HList</code> and <code class="scala">VIn <: HList</code></li>
+              <li class="fragment fade-up">output: <code class="scala">O</code></li>
+              <li class="fragment fade-up">method: <code class="scala">M</code></li>
+              <li class="fragment fade-up">elements of our api: <code class="scala">El <: HList</code></li>
+            </ul>
+
+            <aside class="notes">
+              First thing we do with our api type to extract five new types which will come in handy later on. 
+                - KIn and VIn are the key and value types of the input fields we expect, e.g. key 'name and value String
+                - O and 
+                - M represent the output type and the method
+                - and El are all the elements of our api, here userW.T :: SegmentInput :: QueryInput :: GetCall :: HNil
+
+              Usually when you try to transform a collection into a new shape you use folds. But how to do the same thing for types?
+	    </aside>
+          </section>
+          <section>
+            <h4>fold over types</h4>
+            
+            <pre><code class="scala" data-trim>
+              trait FoldLeftFunction[In, Agg] { type Out }
+
+              implicit def queryFold
+                  [S <: Symbol, A, El <: HList, KIn <: HList, VIn <: HList, M, Out] = 
+                FoldLeftFunction[Query[S, A], (El, KIn, VIn, M, Out)] { 
+                  type Out = (QueryInput :: El, S :: KIn, A :: VIn, M, Out) 
+                }
+
+              // the rest ...
+            </code></pre>
+            
+            <aside class="notes">
+              We define how to aggregate two types, here for the segment ...
+            </aside>
+          </section>
+          <section>
+            <h4>fold over types</h4>
+            
+            <pre><code class="scala" data-trim>
+              trait TypeLevelFoldLeft[H <: HList, Agg] { type Out }
+
+              implicit def returnCase[Agg] = new TypeLevelFoldLeft[HNil, Agg] {
+                type Out = Agg
+              }
+
+              implicit def foldCase[H, T <: HList, Agg, FfOut, FOut]
+                (implicit f: FoldLeftFunction.Aux[H, Agg, FfOut], 
+                          next: Lazy[TypeLevelFoldLeft.Aux[T, FfOut, FOut]]) = 
+                new TypeLevelFoldLeft[H :: T, Agg] { type Out = FOut }
+            </code></pre>
+            
+            <aside class="notes">
+              And then we construct a recrusive call structure to traverse our api type. Here we look at the current element type of our api and try to find the corresponding aggregation. When this is done the next step is resolved with the new intermediate type. At the end, we just return the latest aggregated type as final result.
+            </aside>
+          </section>
+          <section>
+            <h4>what we got so far</h4>
+
+            <pre><code class="scala" data-trim>
+              type KIn = nameW.T :: filterW.T :: HNil
+              type VIn = String :: Int :: HNil
+              type El  = usersW.T :: SegmentInput :: QueryInput
+              type M   = GetCall
+              type O   = List[User]
+            </code></pre>
+          </section>
+          <section>
+            <h4>collect the request data</h4>
+
+            <pre><code class="scala" data-trim>
+              type Uri     = List[String]
+              type Queries = Map[String, List[String]]
+ 
+              VIn => (Uri, Queries)
+            </code></pre>
+
+            <aside class="notes">
+              Next step to is derive a function to collect all data necessary to make a request. In our case this means we need the uri and queries. 
+
+              To do so we will introduce another typeclass we will call RequestDataBuilder.
+            </aside>
+          </section>
+          <section>
+            <h4>collect the request data</h4>
+
+            <pre><code class="scala" data-trim>
+              trait RequestDataBuilder[El <: HList, KIn <: HList, VIn <: HList, M, O] {
+                def apply(inputs: VIn, 
+                          uri: Uri, 
+                          queries: Queries): (Uri, Queries)
+              }
+            </code></pre>
+
+            <aside class="notes">
+              This trait provides a single function which gets the expected input and builds up the uri and queries.
+            </aside>
+          </section>
+          <section>
+            <h4>collect the request data</h4>
+
+            <pre><code class="scala" data-trim>
+              implicit def queryBuilder
+                  [K <: Symbol, V, T <: HList, KIn <: HList, VIn <: HList, M, O]
+                  (implicit wit: Witness.Aux[K], next: RequestDataBuilder[T, KIn, VIn, O]) = 
+                new RequestDataBuilder[QueryInput :: T, K :: KIn, V :: VIn, O] {
+                  type Out = next.Out
+
+                  def apply(inputs: V :: VIn, uri: Uri, queries: Queries): Out =
+                    next(inputs.tail, uri, Map(wit.value.name -> List(inputs.head.toString())) ++ queries)
+                }
+            </code></pre>
+
+            <aside class="notes">
+              Above is again an example for queries. It resolves the witness of the key and puts that together with the input value into our queries map.
+            </aside>
+          </section>
+          <section>
+            <h4>what we got so far</h4>
+
+            <pre><code class="scala" data-trim>
+              "joe" :: 42 :: HNil => (List("users", "joe"), Map("filterByAge" -> List("42")))
+            </code></pre>
+          </section>
+          <section>
+            <h4>do the request</h4>
+
+            <pre><code class="scala" data-trim>
+              trait ApiRequest[M, F[_], C, Out] {
+
+                def apply(data: (Uri, Queries), client: C): F[Out]
+              }
+            </code></pre>
           </section>
         </section>
       </div>
@@ -92,12 +290,14 @@
 
     <script>
        Reveal.initialize({
-           controls: true,
-           progress: true,
-       history: false,
+           width: "85%",
+           height: "80%",
+           controls: false,
+           progress: false,
+           history: false,
            center: true,
 
-           transition: 'slide', // none/fade/slide/convex/concave/zoom
+           transition: 'none', // none/fade/slide/convex/concave/zoom
 
            dependencies: [
                { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
