@@ -315,13 +315,43 @@
         </section>
         <section>
           <section>
-            <h4>Typedapi - all you saw and more</h4>
+            <h4>Typedapi - what you saw and more</h4>
             
-            <ul>
-              <li class="fragment fade-up">client and server functions</li>
-              <li class="fragment fade-up">support for http4s</li>
-              <li class="fragment fade-up">single and multi-api derivation</li>
-            </ul>
+            <pre><code class="scala" data-trim>
+              val Api = api(Get[List[User]], Root / "users" / Segment[String]('name), Queries add Query[Int]('minAge))
+
+              val get = derive(Api)
+              get("joe", 42).run[IO](client)
+            </code></pre>
+          </section>
+          <section>
+            <h4>Typedapi - what you saw and more</h4>
+            
+            <pre><code class="scala" data-trim>
+              val endpoints = derive[IO](Api).from((name, age) => ???)
+
+              val server = mount(sm, endpoints)
+
+              server.unsafeRunSync()
+            </code></pre>
+          </section>
+          <section>
+            <h4>Typedapi - what you saw and more</h4>
+            
+            <pre><code class="scala" data-trim>
+              val AllTheAPis =
+                api(Get[List[User]], Root / "users" / Segment[String]('name), Queries add Query[Int]('minAge)) :|:
+                apiWithBody(Put[Unit], User, Root / "store" / "users")
+
+              val (get, put) = deriveAll(AllTheApis)
+            </code></pre>
+          </section>
+          <section>
+            <h4>Typedapi - what you saw and more</h4>
+            
+            <pre><code class="scala" data-trim>
+              val ServantStyle = := "users" :> Segment[String]('name) :> Query[Int]('minAge) :> Get[List[User]]
+            </code></pre>
           </section>
           <section>
             <h4>What's next</h4>
