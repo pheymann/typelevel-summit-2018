@@ -1,2 +1,5 @@
 # typelevel-summit-2018
-My Talk - Typedapi: Define your API on the typelevel
+### Typedapi: Define your API on the typelevel
+
+ - you can find the slides [here](pheymann.github.io/typelevel-summit-2018)
+ - and a written version [here](post.md)
